@@ -1,0 +1,5 @@
+beaker-pyteal==0.4.0
+black==22.10.0
+py-algorand-sdk==1.20.1
+pyteal==0.20.1
+pytest==7.2.0
