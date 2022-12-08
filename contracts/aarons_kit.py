@@ -11,6 +11,12 @@ class AaronsKit(Application):
         default=Txn.sender(),
     )
 
+    total_distributed: Final[ApplicationStateValue] = ApplicationStateValue(
+        stack_type=TealType.uint64,
+        descr="The total amount of donations distributed by this contract.",
+        default=Int(0),
+    )
+
     donations_snapshot: Final[ApplicationStateValue] = ApplicationStateValue(
         stack_type=TealType.uint64,
         descr="The latest snapshot of the donations for this contract.",
@@ -53,7 +59,7 @@ class AaronsKit(Application):
         )
 
     @external
-    def set_snapshots(
+    def take_snapshot(
         self,
         papers_scraped: abi.Uint64,
     ):
@@ -164,6 +170,9 @@ class AaronsKit(Application):
                         ),
                     ),
                 ).Then(
+                    self.total_distributed.set(
+                        self.total_distributed.get() + amount.load()
+                    ),
                     InnerTxnBuilder.Execute(
                         {
                             TxnField.type_enum: TxnType.Payment,

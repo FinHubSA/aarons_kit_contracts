@@ -74,14 +74,14 @@ class TestAaronsKit:
             pass
 
     # set_snapshots
-    def test_set_snapshots(self):
+    def test_take_snapshot(self):
         # set snapshots as manager
         donation_amount = 50_000_000
         self.donate(donation_amount)
 
         papers_scraped = 1000
         self.app_client.call(
-            AaronsKit.set_snapshots,
+            AaronsKit.take_snapshot,
             papers_scraped=papers_scraped,
         )
 
@@ -99,20 +99,20 @@ class TestAaronsKit:
             == self.deployment_account.address
         )
 
-    def test_set_snapshots_less_mbr(self):
+    def test_take_snapshot_less_mbr(self):
         """set snapshots without being manager (txn should fail)"""
         papers_scraped = 1000
 
         try:
             self.app_client.call(
-                AaronsKit.set_snapshots,
+                AaronsKit.take_snapshot,
                 papers_scraped=papers_scraped,
             )
             assert False
         except client.LogicException:
             pass
 
-    def test_set_snapshots_not_manager(self):
+    def test_take_snapshot_not_manager(self):
         """set snapshots without being manager (txn should fail)"""
         donation_amount = 50_000_000
         self.donate(donation_amount)
@@ -122,7 +122,7 @@ class TestAaronsKit:
 
         try:
             self.app_client.call(
-                AaronsKit.set_snapshots,
+                AaronsKit.take_snapshot,
                 papers_scraped=papers_scraped,
                 sender=other_account.address,
                 signer=AccountTransactionSigner(other_account.private_key),
@@ -157,7 +157,7 @@ class TestAaronsKit:
         total_papers_scraped = sum(papers_scraped)
 
         self.app_client.call(
-            AaronsKit.set_snapshots,
+            AaronsKit.take_snapshot,
             papers_scraped=total_papers_scraped,
         )
 
@@ -227,6 +227,15 @@ class TestAaronsKit:
             ]
             assert actual_amount == expected_payments[i]
 
+        global_state = state_decode.decode_state(
+            self.app_client.client.application_info(self.app_id)["params"][
+                "global-state"
+            ]
+        )
+
+        assert global_state is not None
+        assert global_state["total_distributed"] == sum(expected_payments)
+
     def test_distribute_donations_not_manager(self):
         """distribute donations without being manager (txn should fail"""
         other_account = sandbox.get_accounts()[0]
@@ -242,7 +251,7 @@ class TestAaronsKit:
         total_papers_scraped = sum(papers_scraped)
 
         self.app_client.call(
-            AaronsKit.set_snapshots,
+            AaronsKit.take_snapshot,
             papers_scraped=total_papers_scraped,
         )
 
@@ -282,4 +291,5 @@ class TestAaronsKit:
 
         donation_txn = donation_txn.sign(donor.private_key)
 
-        self.app_client.client.send_transaction(donation_txn)
+        tx_id = self.app_client.client.send_transaction(donation_txn)
+        transaction.wait_for_confirmation(self.app_client.client, tx_id, 5)
