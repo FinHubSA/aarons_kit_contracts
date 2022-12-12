@@ -83,7 +83,7 @@ class AaronsKit(Application):
     @external
     def distribute_donations(self):
         """
-        Distribute donations to four accounts
+        Distribute donations to a maximum of four accounts
         """
 
         return Seq(
