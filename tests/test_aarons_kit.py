@@ -1,5 +1,10 @@
+from algosdk.abi import Method
 from algosdk.account import generate_account
-from algosdk.atomic_transaction_composer import AccountTransactionSigner
+from algosdk.atomic_transaction_composer import (
+    AtomicTransactionComposer,
+    AtomicTransactionResponse,
+    TransactionWithSigner,
+)
 from algosdk.encoding import encode_address
 from algosdk.future import transaction
 from beaker import *
@@ -17,7 +22,7 @@ from util.sandbox import call_sandbox_command
 
 
 class TestAaronsKit:
-    def setup_method(self):
+    def setup_method(self) -> None:
         self.deployment_account = sandbox.get_accounts().pop()
 
         self.app_client = client.ApplicationClient(
@@ -37,7 +42,7 @@ class TestAaronsKit:
         )
 
     # set_manager
-    def test_set_manager(self):
+    def test_set_manager(self) -> None:
         """set manager as current manager"""
         new_manager_address = sandbox.get_accounts()[0].address
 
@@ -58,23 +63,8 @@ class TestAaronsKit:
             == new_manager_address
         )
 
-    def test_set_manager_not_manager(self):
-        """set manager without being current manager (txn should fail)"""
-        new_manager = sandbox.get_accounts()[0]
-
-        try:
-            self.app_client.call(
-                AaronsKit.set_manager,
-                new_manager=new_manager.address,
-                sender=new_manager.address,
-                signer=AccountTransactionSigner(new_manager.private_key),
-            )
-            assert False
-        except client.LogicException:
-            pass
-
     # set_snapshots
-    def test_take_snapshot(self):
+    def test_take_snapshot(self) -> None:
         # set snapshots as manager
         donation_amount = 50_000_000
         self.donate(donation_amount)
@@ -99,7 +89,7 @@ class TestAaronsKit:
             == self.deployment_account.address
         )
 
-    def test_take_snapshot_less_mbr(self):
+    def test_take_snapshot_less_mbr(self) -> None:
         """set snapshots without being manager (txn should fail)"""
         papers_scraped = 1000
 
@@ -107,32 +97,13 @@ class TestAaronsKit:
             self.app_client.call(
                 AaronsKit.take_snapshot,
                 papers_scraped=papers_scraped,
-            )
-            assert False
-        except client.LogicException:
-            pass
-
-    def test_take_snapshot_not_manager(self):
-        """set snapshots without being manager (txn should fail)"""
-        donation_amount = 50_000_000
-        self.donate(donation_amount)
-
-        papers_scraped = 1000
-        other_account = sandbox.get_accounts()[0]
-
-        try:
-            self.app_client.call(
-                AaronsKit.take_snapshot,
-                papers_scraped=papers_scraped,
-                sender=other_account.address,
-                signer=AccountTransactionSigner(other_account.private_key),
             )
             assert False
         except client.LogicException:
             pass
 
     # distribute_donations
-    def test_distribute_donations(self):
+    def test_distribute_donations(self) -> None:
         """distribute donations as manager"""
         donation_amount = 50_000_000
         self.donate(donation_amount)
@@ -161,54 +132,7 @@ class TestAaronsKit:
             papers_scraped=total_papers_scraped,
         )
 
-        sp = self.app_client.client.suggested_params()
-        sp.fee = 5000
-
-        self.app_client.call(
-            AaronsKit.distribute_donations_4,
-            papers_scraped_1=papers_scraped[0],
-            papers_scraped_2=papers_scraped[1],
-            papers_scraped_3=papers_scraped[2],
-            papers_scraped_4=papers_scraped[3],
-            scraper_addr_1=scraper_addresses[0],
-            scraper_addr_2=scraper_addresses[1],
-            scraper_addr_3=scraper_addresses[2],
-            scraper_addr_4=scraper_addresses[3],
-            suggested_params=sp,
-        )
-
-        sp.fee = 4000
-
-        self.app_client.call(
-            AaronsKit.distribute_donations_3,
-            papers_scraped_1=papers_scraped[4],
-            papers_scraped_2=papers_scraped[5],
-            papers_scraped_3=papers_scraped[6],
-            scraper_addr_1=scraper_addresses[4],
-            scraper_addr_2=scraper_addresses[5],
-            scraper_addr_3=scraper_addresses[6],
-            suggested_params=sp,
-        )
-
-        sp.fee = 3000
-
-        self.app_client.call(
-            AaronsKit.distribute_donations_2,
-            papers_scraped_1=papers_scraped[7],
-            papers_scraped_2=papers_scraped[8],
-            scraper_addr_1=scraper_addresses[7],
-            scraper_addr_2=scraper_addresses[8],
-            suggested_params=sp,
-        )
-
-        sp.fee = 2000
-
-        self.app_client.call(
-            AaronsKit.distribute_donations_1,
-            papers_scraped_1=papers_scraped[9],
-            scraper_addr_1=scraper_addresses[9],
-            suggested_params=sp,
-        )
+        self.distribute_donations(scraper_addresses, papers_scraped)
 
         expected_payments = list(
             map(
@@ -236,49 +160,8 @@ class TestAaronsKit:
         assert global_state is not None
         assert global_state["total_distributed"] == sum(expected_payments)
 
-    def test_distribute_donations_not_manager(self):
-        """distribute donations without being manager (txn should fail"""
-        other_account = sandbox.get_accounts()[0]
-        donation_amount = 50_000_000
-        self.donate(donation_amount)
-
-        scraper_addresses = []
-        for _ in range(4):
-            _, address = generate_account()
-            scraper_addresses.append(address)
-
-        papers_scraped = [1623, 9384, 87, 902]
-        total_papers_scraped = sum(papers_scraped)
-
-        self.app_client.call(
-            AaronsKit.take_snapshot,
-            papers_scraped=total_papers_scraped,
-        )
-
-        sp = self.app_client.client.suggested_params()
-        sp.fee = 5000
-
-        try:
-            self.app_client.call(
-                AaronsKit.distribute_donations_4,
-                papers_scraped_1=papers_scraped[0],
-                papers_scraped_2=papers_scraped[1],
-                papers_scraped_3=papers_scraped[2],
-                papers_scraped_4=papers_scraped[3],
-                scraper_addr_1=scraper_addresses[0],
-                scraper_addr_2=scraper_addresses[1],
-                scraper_addr_3=scraper_addresses[2],
-                scraper_addr_4=scraper_addresses[3],
-                suggested_params=sp,
-                sender=other_account.address,
-                signer=AccountTransactionSigner(other_account.private_key),
-            )
-            assert False
-        except client.LogicException:
-            pass
-
     # util
-    def donate(self, donation_amount: int):
+    def donate(self, donation_amount: int) -> None:
         sp = self.app_client.get_suggested_params()
         donor = sandbox.get_accounts()[0]
 
@@ -293,3 +176,41 @@ class TestAaronsKit:
 
         tx_id = self.app_client.client.send_transaction(donation_txn)
         transaction.wait_for_confirmation(self.app_client.client, tx_id, 5)
+
+    def distribute_donations(
+        self,
+        scraper_addresses: list[str],
+        papers_scraped: list[int],
+    ) -> AtomicTransactionResponse:
+        sp = self.app_client.client.suggested_params()
+
+        atc = AtomicTransactionComposer()
+        start_index = 0
+
+        method = Method.from_signature("distribute_donations()void")
+
+        while start_index < len(scraper_addresses):
+            end_index = start_index + min(4, len(scraper_addresses) - start_index)
+
+            accounts = scraper_addresses[start_index:end_index]
+            scraped = papers_scraped[start_index:end_index]
+            scraped.insert(0, method.get_selector())
+
+            sp.fee = 1000 + (len(accounts) * 1000)
+
+            atc.add_transaction(
+                TransactionWithSigner(
+                    transaction.ApplicationNoOpTxn(
+                        sender=self.deployment_account.address,
+                        sp=sp,
+                        index=self.app_id,
+                        app_args=scraped,
+                        accounts=accounts,
+                    ),
+                    self.deployment_account.signer,
+                )
+            )
+
+            start_index = end_index
+
+        return atc.execute(self.app_client.client, 5)

@@ -79,74 +79,17 @@ class AaronsKit(Application):
             self.papers_scraped_snapshot.set(papers_scraped.get()),
         )
 
+    # this method is NOT ARC-04 (ABI) compliant since it relies on a variable number of args and accounts being passed in
     @external
-    def distribute_donations_4(
-        self,
-        papers_scraped_1: abi.Uint64,
-        papers_scraped_2: abi.Uint64,
-        papers_scraped_3: abi.Uint64,
-        papers_scraped_4: abi.Uint64,
-        scraper_addr_1: abi.Account,
-        scraper_addr_2: abi.Account,
-        scraper_addr_3: abi.Account,
-        scraper_addr_4: abi.Account,
-    ):
+    def distribute_donations(self):
         """
         Distribute donations to four accounts
         """
 
-        return self._distribute_donations()
-
-    @external
-    def distribute_donations_3(
-        self,
-        papers_scraped_1: abi.Uint64,
-        papers_scraped_2: abi.Uint64,
-        papers_scraped_3: abi.Uint64,
-        scraper_addr_1: abi.Account,
-        scraper_addr_2: abi.Account,
-        scraper_addr_3: abi.Account,
-    ):
-        """
-        Distribute donations to three accounts
-        """
-
-        return self._distribute_donations()
-
-    @external
-    def distribute_donations_2(
-        self,
-        papers_scraped_1: abi.Uint64,
-        papers_scraped_2: abi.Uint64,
-        scraper_addr_1: abi.Account,
-        scraper_addr_2: abi.Account,
-    ):
-        """
-        Distribute donations to two accounts
-        """
-
-        return self._distribute_donations()
-
-    @external
-    def distribute_donations_1(
-        self,
-        papers_scraped_1: abi.Uint64,
-        scraper_addr_1: abi.Account,
-    ):
-        """
-        Distribute donations to one account
-        """
-
-        return self._distribute_donations()
-
-    @internal(TealType.none)
-    def _distribute_donations(self):
-        """
-        Distribute donations
-        """
-
         return Seq(
             Assert(Txn.sender() == self.manager.get()),
+            Assert(Txn.accounts.length() > Int(0)),
+            Assert(Txn.accounts.length() + Int(1) == Txn.application_args.length()),
             For(
                 (i := ScratchVar()).store(Int(1)),
                 i.load() < Txn.accounts.length() + Int(1),
